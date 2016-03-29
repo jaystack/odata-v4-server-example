@@ -2,9 +2,12 @@ var Parser = require('odata-v4-parser').Parser;
 var parser = new Parser();
 
 var express = require('express');
+var bodyParser = require('body-parser');
+var serveStatic = require('serve-static');
 var app = express();
 
 var url = require('url');
+var path = require('path');
 var Visitor = require('./visitor');
 
 var mongoose = require('mongoose');
@@ -15,6 +18,18 @@ var kittySchema = mongoose.Schema({
 	Age: Number,
 	Lives: Number,
 	Owner: String
+}, {
+	id: false
+});
+kittySchema.virtual('Id').get(function(){
+    return this._id.toHexString();
+});
+kittySchema.set('toJSON', {
+    virtuals: true,
+	transform: function(doc, ret, options){
+		delete ret._id;
+		delete ret.__v;
+	}
 });
 var models = {
 	Kittens: mongoose.model('Kitten', kittySchema)
@@ -26,7 +41,38 @@ app.use('/odata', function(req, res, next){
 	next();
 });
 
-app.use('/odata/:entitySet', function(req, res, next){
+// service document
+app.get('/odata', function(req, res, next){
+	res.json({
+		'@odata.context': req.protocol + '://' + req.get('host') + '/odata/$metadata',
+		value: [
+			{
+				name: 'Kittens',
+				kind: 'EntitySet',
+				url: 'Kittens'
+			}
+		]
+	})
+});
+
+app.post('/odata/:entitySet', bodyParser.json(), function(req, res, next){
+	if (models[req.params.entitySet]){
+		var entity = new models[req.params.entitySet](req.body);
+		entity.save().then(function(result){
+			if (req.headers.prefer.indexOf('return=minimal') < 0){
+				res.status(201);
+				res.json(result);
+			}else{
+				res.status(204);
+				res.end();
+			}
+		}, next);
+	}else next('Resource not found');
+});
+
+app.get('/odata/:entitySet', function(req, res, next){
+	if (!models[req.params.entitySet]) return next('Resource not found');
+
 	var visitor = new Visitor();
 
 	if (req.odata){
@@ -36,10 +82,12 @@ app.use('/odata/:entitySet', function(req, res, next){
 	var callback = function(err, data){
 		if (err) return next(err);
 
-		if (req.query.debug){
+		if (req.headers.debug){
 			res.json({
 				entitySet: req.params.entitySet,
 				query: visitor.query,
+				fields: visitor.fields,
+				options: visitor.options,
 				result: data,
 				odata: req.odata
 			});
@@ -50,9 +98,12 @@ app.use('/odata/:entitySet', function(req, res, next){
 			});
 		}
 	};
-	if (models[req.params.entitySet]) models[req.params.entitySet].find(visitor.query, { _id: 0, __v: 0 }, callback);
+
+	if (models[req.params.entitySet]) models[req.params.entitySet].find(visitor.query, visitor.fields, visitor.options, callback);
 	else callback(null, []);
 });
+
+app.use(serveStatic(path.join(__dirname, './public')));
 
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));

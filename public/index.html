@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>OData server example</title>
+	<script type="text/javascript" src="js/odatajs-4.0.0.js"></script>
+	<script type="text/javascript" src="js/jaydata.js"></script>
+	<script type="text/javascript" src="js/jaydataproviders/oDataProvider.js"></script>
+</head>
+<body>
+	<script type="text/javascript">
+		var Kitty = $data.Entity.extend('Kitty', {
+			Id: { type: 'string', computed: true, key: true },
+			Name: { type: 'string' },
+			Age: { type: 'number' },
+			Lives: { type: 'number' },
+			Owner: { type: 'string' }
+		});
+
+		var ODataServer = $data.EntityContext.extend('ODataServer', {
+			Kittens: { type: $data.EntitySet, elementType: Kitty }
+		});
+
+		var context = new ODataServer('http://localhost:52999/odata');
+		context.onReady(function(c){
+			window.odataServer = c;
+			c.Kittens.filter(function(it){ return it.Age > 10; }).map(function(it){ return { name: it.Name, age: it.Age }; }).take(3).toArray(function(r){
+				document.body.innerHTML = JSON.stringify(r, null, 4).replace(/ /g, '&nbsp;').replace(/\n/g, '<br>');
+			});
+		});
+	</script>
+</body>
+</html>
