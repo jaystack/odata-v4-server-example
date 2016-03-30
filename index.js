@@ -3,6 +3,7 @@ var parser = new Parser();
 
 var express = require('express');
 var bodyParser = require('body-parser');
+var jsonParser = bodyParser.json();
 var serveStatic = require('serve-static');
 var app = express();
 
@@ -38,7 +39,28 @@ var models = {
 app.use('/odata', function(req, res, next){
 	var qs = url.parse(req.url).query;
 	if (qs) req.odata = parser.query(qs);
-	next();
+	res.send(req.url.replace(/^\//, ''));
+	//next();
+});
+
+app.post('/odata/$batch', jsonParser, function(req, res, next){
+	res.status(400);
+	next('Not implemented');
+});
+
+app.get('/odata/$entity', function(req, res, next){
+	res.status(400);
+	next('Not implemented');
+});
+
+app.get('/odata/$entity/:qualifiedEntityTypeName', function(req, res, next){
+	res.status(400);
+	next('Not implemented');
+});
+
+app.get('/odata/$metadata', function(req, res, next){
+	res.status(400);
+	next('Not implemented');
 });
 
 // service document
@@ -55,7 +77,7 @@ app.get('/odata', function(req, res, next){
 	})
 });
 
-app.post('/odata/:entitySet', bodyParser.json(), function(req, res, next){
+app.post('/odata/:entitySet', jsonParser, function(req, res, next){
 	if (models[req.params.entitySet]){
 		var entity = new models[req.params.entitySet](req.body);
 		entity.save().then(function(result){
