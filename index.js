@@ -36,12 +36,12 @@ var models = {
 	Kittens: mongoose.model('Kitten', kittySchema)
 };
 
-app.post('/odata/$batch', jsonParser, function(req, res, next){
+app.post('/odata/\\$batch', jsonParser, function(req, res, next){
 	res.status(400);
 	next('Not implemented');
 });
 
-app.get('/odata/$metadata', function(req, res, next){
+app.get('/odata/\\$metadata', function(req, res, next){
 	res.status(400);
 	next('Not implemented');
 });
