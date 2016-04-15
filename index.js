@@ -9,7 +9,7 @@ var parser = new Parser();
 
 var url = require('url');
 var path = require('path');
-var ODataMongoDBVisitor = require('odata-mongodb-visitor');
+var createQuery = require('odata-v4-mongodb').createQuery;
 
 var mongoose = require('mongoose');
 mongoose.connect('mongodb://localhost/jaystack');
@@ -41,10 +41,32 @@ app.post('/odata/\\$batch', jsonParser, function(req, res, next){
 	next('Not implemented');
 });
 
-app.get('/odata/\\$metadata', function(req, res, next){
-	res.status(400);
-	next('Not implemented');
-});
+var ServiceMetadata = require('odata-v4-service-metadata').ServiceMetadata;
+
+app.get('/odata/\\$metadata', ServiceMetadata.defineEntities({
+    namespace: 'Default',
+    containerName: 'Container',
+    entities: [
+        {
+            name: 'Kitten',
+            collectionName: 'Kittens',
+            keys: ['Id'],
+            computedKey: true,
+            properties: {
+                Id: 'Edm.String',
+                Name: 'Edm.String',
+                Age: 'Edm.Int32',
+                Lives: 'Edm.Int32',
+                Owner: 'Edm.String'
+            },
+            annotations:[
+                { name: 'UI.DisplayName', value: 'Meww' },
+                { property: 'Id', name: 'UI.ReadOnly', value: 'true' },
+                { property: 'Title', name: 'UI.DisplayName', value: 'Meww Meww' },
+            ]
+        }
+    ]
+}).requestHandler());
 
 // service document
 app.get('/odata', function(req, res, next){
@@ -74,14 +96,22 @@ app.post('/odata/Kittens', jsonParser, function(req, res, next){
 });
 
 app.get('/odata/Kittens', function(req, res, next){
-	var visitor = new ODataMongoDBVisitor();
+	var find = {
+		query: {},
+		fields: {},
+		options: {}
+	};
 	var qs = url.parse(req.url).query;
 	if (qs){
-		var ast = parser.query(qs);
-		visitor.Visit(ast);
+		var query = createQuery(qs);
+		find.query = query.query;
+		find.fields = query.projection;
+		find.options.sort = query.sort;
+		find.options.skip = query.skip;
+		find.options.limit = query.limit;
 	}
 
-	models.Kittens.find(visitor.query, visitor.fields, visitor.options, function(err, data){
+	models.Kittens.find(find.query, find.fields, find.options, function(err, data){
 		if (err) return next(err);
 
 		res.json({
