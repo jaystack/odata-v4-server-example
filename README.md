@@ -1,6 +1,6 @@
-# Simple OData server example
+# Simple OData V4 server example
 
-Using Express and OData v4 parser
+Using Express and OData V4 stack
 
 ## How to
 
