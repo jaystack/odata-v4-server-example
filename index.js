@@ -70,6 +70,7 @@ app.get('/odata/\\$metadata', ServiceMetadata.defineEntities({
 
 // service document
 app.get('/odata', function(req, res, next){
+    res.set('OData-Version', '4.0')
 	res.json({
 		'@odata.context': req.protocol + '://' + req.get('host') + '/odata/$metadata',
 		value: [
